@@ -15,13 +15,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- KREDENSIAL BIGQUERY ---
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials.json"
+# --- KREDENSIAL BIGQUERY (Mendukung Deteksi Otomatis Lokal & Server Cloud) ---
 try:
-    client = bigquery.Client()
+    if "gcp_credentials" in st.secrets:
+        # Jika berjalan di server cloud Streamlit, baca dari menu Advanced Settings Secrets
+        from google.oauth2 import service_account
+        creds_dict = dict(st.secrets["gcp_credentials"])
+        credentials = service_account.Credentials.from_service_account_info(creds_dict)
+        client = bigquery.Client(credentials=credentials, project=creds_dict["project_id"])
+    else:
+        # Jika berjalan di komputer lokal Anda, tetap baca berkas credentials.json
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials.json"
+        client = bigquery.Client()
 except Exception as e:
     st.error(f"Gagal menginisialisasi BigQuery Client: {e}")
-
 # --- STYLE KUSTOM (Perbaikan Font & Proteksi Ikon Sidebar) ---
 st.markdown("""
     <style>
