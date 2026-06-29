@@ -233,17 +233,54 @@ def load_data_from_bigquery():
 
 # --- INITIALIZATION DATA ---
 if 'partners' not in st.session_state:
+    st.session_state.partners = []
+    
+    # 1. Ambil data utama dari BigQuery
     try:
-        st.session_state.partners = load_data_from_bigquery()
+        bq_data = load_data_from_bigquery()
+        if bq_data:
+            for p in bq_data:
+                p['Status_Kemitraan'] = str(p.get('Status_Kemitraan', '')).strip().upper()
+                st.session_state.partners.append(p)
     except Exception:
-        st.session_state.partners = []
+        pass
         
+    # Jika BigQuery bermasalah/kosong di komputer lokal, pasang data dummy default
     if not st.session_state.partners:
         st.session_state.partners = [
             {'Partner_ID': 'EKS-001', 'Nama_Label': 'Partner A (High Performer)', 'Status_Kemitraan': 'EKSISTING', 'Market_Share_Score': 9, 'New_Content_Score': 8, 'Fraud_Risk_Score': 10, 'Marketing_Value_Score': 9, 'gemini_insight': None},
             {'Partner_ID': 'EKS-002', 'Nama_Label': 'Partner B (Low Content)', 'Status_Kemitraan': 'EKSISTING', 'Market_Share_Score': 6, 'New_Content_Score': 2, 'Fraud_Risk_Score': 4, 'Marketing_Value_Score': 5, 'gemini_insight': None},
             {'Partner_ID': 'EKS-003', 'Nama_Label': 'Partner D (Strong Catalog)', 'Status_Kemitraan': 'EKSISTING', 'Market_Share_Score': 5, 'New_Content_Score': 1, 'Fraud_Risk_Score': 9, 'Marketing_Value_Score': 8, 'gemini_insight': None}
         ]
+
+    # 2. Sinkronisasi Data Tambahan Berkelanjutan dari Google Sheets
+    try:
+        from streamlit_gsheets import GSheetsConnection
+        conn_init = st.connection("gsheets", type=GSheetsConnection, ttl=0)
+        spreadsheet_url = "https://docs.google.com/spreadsheets/d/16-_OLQefhs1JxLBlfJKgZUuCXqRWLhKtoDq2m8bdSaU/edit"
+        
+        gsheets_df = conn_init.read(spreadsheet=spreadsheet_url)
+        
+        if gsheets_df is not None and not gsheets_df.empty:
+            # Hapus record hantu/kosong pada tabel gsheets
+            gsheets_df = gsheets_df.dropna(subset=['Nama_Label'])
+            gsheets_records = gsheets_df.to_dict(orient='records')
+            
+            for p in gsheets_records:
+                # Normalisasi string status agar kebal kapitalisasi (e.g. 'Calon' -> 'CALON')
+                p['Status_Kemitraan'] = str(p.get('Status_Kemitraan', '')).strip().upper()
+                
+                # Memastikan casting type data numerik pilar aman untuk fungsi akumulator skor
+                p['Market_Share_Score'] = int(p.get('Market_Share_Score', 0))
+                p['New_Content_Score'] = int(p.get('New_Content_Score', 0))
+                p['Fraud_Risk_Score'] = int(p.get('Fraud_Risk_Score', 0))
+                p['Marketing_Value_Score'] = int(p.get('Marketing_Value_Score', 0))
+                p['gemini_insight'] = None
+                
+                # Masukkan ke dalam array terpusat dashboard
+                st.session_state.partners.append(p)
+    except Exception as e:
+        pass
 
 if 'current_audit_id' not in st.session_state:
     st.session_state.current_audit_id = None
