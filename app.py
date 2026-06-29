@@ -732,28 +732,39 @@ elif view == "Evaluasi Partner":
             try:
                 from streamlit_gsheets import GSheetsConnection
                 
-                # Inisialisasi koneksi Google Sheets (menggunakan credentials yang sama dengan BigQuery)
-                conn = st.connection("gsheets", type=GSheetsConnection)
+                # Inisialisasi koneksi Google Sheets dengan mematikan cache (ttl=0)
+                conn = st.connection("gsheets", type=GSheetsConnection, ttl=0)
                 
-                # Masukkan URL link Google Sheet Anda di bawah ini
-                spreadsheet_url = "https://docs.google.com/spreadsheets/d/16-_OLQefhs1JxLBlfJKgZUuCXqRWLhKtoDq2m8bdSaU/edit"
+                # Masukkan URL link Google Sheet Anda
+                spreadsheet_url = "https://docs.google.com/spreadsheets/d/MASUKKAN_ID_SPREADSHEET_ANDA/edit"
                 
                 # 1. Baca data yang sudah ada di sheet saat ini
-                existing_df = conn.read(spreadsheet=spreadsheet_url, ttl=0)
+                existing_df = conn.read(spreadsheet=spreadsheet_url)
                 
-                # 2. Konversi data simulasi baru menjadi DataFrame
+                # Membersihkan baris atau kolom kosong yang tidak sengaja terbaca oleh pandas
+                if existing_df is not None and not existing_df.empty:
+                    existing_df = existing_df.dropna(how='all')
+                else:
+                    existing_df = pd.DataFrame(columns=[
+                        'Partner_ID', 'Nama_Label', 'Status_Kemitraan', 
+                        'Market_Share_Score', 'New_Content_Score', 
+                        'Fraud_Risk_Score', 'Marketing_Value_Score'
+                    ])
+                
+                # 2. Konversi data simulasi baru menjadi DataFrame baru
                 new_row = pd.DataFrame([{
-                    'Partner_ID': eval_partner['Partner_ID'],
-                    'Nama_Label': eval_partner['Nama_Label'],
-                    'Status_Kemitraan': eval_partner['Status_Kemitraan'],
-                    'Market_Share_Score': eval_partner['Market_Share_Score'],
-                    'New_Content_Score': eval_partner['New_Content_Score'],
-                    'Fraud_Risk_Score': eval_partner['Fraud_Risk_Score'],
-                    'Marketing_Value_Score': eval_partner['Marketing_Value_Score']
+                    'Partner_ID': str(eval_partner['Partner_ID']),
+                    'Nama_Label': str(eval_partner['Nama_Label']),
+                    'Status_Kemitraan': str(eval_partner['Status_Kemitraan']),
+                    'Market_Share_Score': int(eval_partner['Market_Share_Score']),
+                    'New_Content_Score': int(eval_partner['New_Content_Score']),
+                    'Fraud_Risk_Score': int(eval_partner['Fraud_Risk_Score']),
+                    'Marketing_Value_Score': int(eval_partner['Marketing_Value_Score'])
                 }])
                 
-                # 3. Gabungkan data lama dengan baris baru (append)
+                # 3. Gabungkan data lama dengan baris baru (Reset index agar index-nya berurutan ke bawah)
                 updated_df = pd.concat([existing_df, new_row], ignore_index=True)
+                updated_df.index = updated_df.index + 1 # Memastikan keselarasan baris baris di gsheets
                 
                 # 4. Tulis balik seluruh dataframe yang telah diperbarui ke Google Sheets
                 conn.update(spreadsheet=spreadsheet_url, data=updated_df)
