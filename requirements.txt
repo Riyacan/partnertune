@@ -6,3 +6,4 @@ google-cloud-bigquery
 requests
 streamlit-option-menu
 db-dtypes
+st-gsheets-connection
