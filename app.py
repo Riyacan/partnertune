@@ -233,7 +233,7 @@ def load_data_from_bigquery():
         
     return raw_records
 
-# --- INITIALIZATION DATA (SINKRONISASI & AESTHETIC LOADING SCREEN) ---
+# --- INITIALIZATION DATA ---
 if 'partners' not in st.session_state:
     # 1. Tampilkan Kontainer Loading Aesthetic Branded
     loading_placeholder = st.empty()
@@ -915,13 +915,32 @@ elif view == "Audit Portofolio":
         else: st.session_state.current_audit_id = None
             
     else:
+        # Layout Filter Status Kemitraan
         f_cols = st.columns(3)
         show_eksisting = f_cols[0].checkbox("EKSISTING ", value=True)
         show_calon = f_cols[1].checkbox("CALON ", value=True)
         show_non_aktif = f_cols[2].checkbox("NON-AKTIF ", value=True)
         
+        # Kolom Filter Pencarian Berdasarkan Nama Partner / Label
+        search_partner_query = st.text_input(
+            "🔍 Cari Nama Partner / Label", 
+            placeholder="Ketik nama label musik yang ingin dicari...", 
+            value=""
+        )
+        
         allowed_status = [s for s, v in [('EKSISTING', show_eksisting), ('CALON', show_calon), ('NON-AKTIF', show_non_aktif)] if v]
+        
+        # Pemfilteran Awal Berdasarkan Status Kemitraan
         audit_partners = [p for p in st.session_state.partners if p['Status_Kemitraan'] in allowed_status]
+        
+        # Pemfilteran Lanjutan Berdasarkan Input Pencarian Nama (Case-Insensitive)
+        if search_partner_query:
+            audit_partners = [
+                p for p in audit_partners 
+                if search_partner_query.lower() in str(p.get('Nama_Label', '')).lower()
+            ]
+        
+        st.markdown("<br>", unsafe_allow_html=True)
         
         if len(audit_partners) > 0:
             cols_per_row = 3
@@ -937,4 +956,4 @@ elif view == "Audit Portofolio":
                         st.markdown(f"**Skor: {score}**\n`{decision['type']}`")
                         p_id = p['Partner_ID'] if pd.notna(p['Partner_ID']) and p['Partner_ID'] != "" else "KOSONG"
                         if st.button("Detail Skor ➡️", key=f"btn_audit_{p_id}_{i}_{idx}"): st.session_state.current_audit_id = p['Partner_ID']; st.rerun()
-        else: st.info("Tidak ada partner yang sesuai dengan filter.")
+        else: st.info("Tidak ada partner yang sesuai dengan kriteria filter.")
