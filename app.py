@@ -694,11 +694,18 @@ elif view == "Evaluasi Partner":
         with col_btn2: submitted = st.form_submit_button("🔮 Hitung & Analisis Strategi", use_container_width=True)
         
     if submitted:
-        if not nama_label: st.error("Nama Label wajib diisi!")
+        if not nama_label: 
+            st.error("Nama Label wajib diisi!")
         else:
             eval_partner = {
-                'Partner_ID': f"SIM-{int(time.time())}", 'Nama_Label': nama_label, 'Status_Kemitraan': status_kemitraan,
-                'Market_Share_Score': market_share, 'New_Content_Score': new_content, 'Fraud_Risk_Score': fraud_risk, 'Marketing_Value_Score': marketing_value, 'gemini_insight': None
+                'Partner_ID': f"SIM-{int(time.time())}", 
+                'Nama_Label': nama_label, 
+                'Status_Kemitraan': status_kemitraan,
+                'Market_Share_Score': market_share, 
+                'New_Content_Score': new_content, 
+                'Fraud_Risk_Score': fraud_risk, 
+                'Marketing_Value_Score': marketing_value, 
+                'gemini_insight': None
             }
             score = calculate_score(eval_partner)
             decision = get_partner_decision(eval_partner)
@@ -706,8 +713,11 @@ elif view == "Evaluasi Partner":
             st.markdown("---")
             st.markdown("### Hasil Keputusan Strategi")
             c_res1, c_res2 = st.columns([2, 1])
-            with c_res1: st.subheader(f"🏷️ {eval_partner['Nama_Label']}"); st.metric("Rekomendasi Sistem", decision['type'])
-            with c_res2: st.metric("Total Skor Kelayakan", f"{score}/100")
+            with c_res1: 
+                st.subheader(f"🏷️ {eval_partner['Nama_Label']}")
+                st.metric("Rekomendasi Sistem", decision['type'])
+            with c_res2: 
+                st.metric("Total Skor Kelayakan", f"{score}/100")
                 
             with st.spinner("✨ Menganalisis pilar metrik melalui AI..."):
                 insight = get_vetting_insights(eval_partner, score, decision['type'])
@@ -716,13 +726,51 @@ elif view == "Evaluasi Partner":
             st.markdown("#### 🪄 AI Strategic Insight")
             st.info(insight)
             
+            # ==================================================================
+            # --- PROSES SIMPAN PERMANEN KE GOOGLE SHEETS VIA ST.CONNECTION ---
+            # ==================================================================
+            try:
+                from streamlit_gsheets import GSheetsConnection
+                
+                # Inisialisasi koneksi Google Sheets (menggunakan credentials yang sama dengan BigQuery)
+                conn = st.connection("gsheets", type=GSheetsConnection)
+                
+                # Masukkan URL link Google Sheet Anda di bawah ini
+                spreadsheet_url = "https://docs.google.com/spreadsheets/d/MASUKKAN_ID_SPREADSHEET_ANDA/edit"
+                
+                # 1. Baca data yang sudah ada di sheet saat ini
+                existing_df = conn.read(spreadsheet=spreadsheet_url, ttl=0)
+                
+                # 2. Konversi data simulasi baru menjadi DataFrame
+                new_row = pd.DataFrame([{
+                    'Partner_ID': eval_partner['Partner_ID'],
+                    'Nama_Label': eval_partner['Nama_Label'],
+                    'Status_Kemitraan': eval_partner['Status_Kemitraan'],
+                    'Market_Share_Score': eval_partner['Market_Share_Score'],
+                    'New_Content_Score': eval_partner['New_Content_Score'],
+                    'Fraud_Risk_Score': eval_partner['Fraud_Risk_Score'],
+                    'Marketing_Value_Score': eval_partner['Marketing_Value_Score']
+                }])
+                
+                # 3. Gabungkan data lama dengan baris baru (append)
+                updated_df = pd.concat([existing_df, new_row], ignore_index=True)
+                
+                # 4. Tulis balik seluruh dataframe yang telah diperbarui ke Google Sheets
+                conn.update(spreadsheet=spreadsheet_url, data=updated_df)
+                st.success("✅ Data simulasi berhasil disimpan secara permanen ke Google Sheets!")
+                
+            except Exception as e:
+                st.warning(f"Gagal menyimpan ke Google Sheets secara permanen: {e}")
+            # ==================================================================
+            
+            # Tetap simpan ke local session state agar langsung muncul di dashboard saat ini
             existing_idx = next((i for i, p in enumerate(st.session_state.partners) if p['Nama_Label'] == nama_label), None)
             if existing_idx is not None:
                 st.session_state.partners[existing_idx].update(eval_partner)
-                st.toast("Data simulasi partner berhasil diperbarui!")
+                st.toast("Data simulasi partner berhasil diperbarui di dashboard!")
             else:
                 st.session_state.partners.append(eval_partner)
-                st.success("Data partner baru berhasil disimpan!")
+                st.toast("Data simulasi partner berhasil ditambahkan ke dashboard!")
 
 # Tampilan 4: AUDIT PORTOFOLIO PARTNER
 elif view == "Audit Portofolio":
