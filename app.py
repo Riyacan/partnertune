@@ -750,7 +750,7 @@ elif view == "Evaluasi Partner":
                 # 3. Gunakan conn.create() dengan argumen data baru saja
                 # Parameter spreadsheet_url langsung otomatis mengarahkan ke file target
                 conn.create(
-                    spreadsheet=spreadsheet_url,
+                    spreadsheet_url=spreadsheet_url,
                     data=new_row
                 )
                 st.success("✅ Data simulasi berhasil ditambahkan di baris paling bawah Google Sheets!")
