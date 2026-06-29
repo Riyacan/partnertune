@@ -29,6 +29,7 @@ try:
         client = bigquery.Client()
 except Exception as e:
     st.error(f"Gagal menginisialisasi BigQuery Client: {e}")
+
 # --- STYLE KUSTOM (Perbaikan Font & Proteksi Ikon Sidebar) ---
 st.markdown("""
     <style>
@@ -140,7 +141,8 @@ def get_audit_summary(partner):
     return call_gemini_api(prompt, "Berikan ringkasan audit singkat dan profesional.")
 
 # --- FUNGSI AMBIL DATA DARI BIGQUERY & MAPPING PILAR EVALUASI ---
-@st.cache_data(ttl=600)
+# PERBAIKAN: show_spinner=False mematikan loading teks default bawaan Streamlit
+@st.cache_data(ttl=600, show_spinner=False)
 def load_data_from_bigquery():
     query = """
         WITH KelompokKuartil AS (
@@ -231,8 +233,34 @@ def load_data_from_bigquery():
         
     return raw_records
 
-# --- INITIALIZATION DATA ---
+# --- INITIALIZATION DATA (SINKRONISASI & AESTHETIC LOADING SCREEN) ---
 if 'partners' not in st.session_state:
+    # 1. Tampilkan Kontainer Loading Aesthetic Branded
+    loading_placeholder = st.empty()
+    with loading_placeholder.container():
+        st.markdown("""
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; background: #ffffff; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.05), 0 8px 10px -6px rgba(79, 70, 229, 0.05); border: 1px solid #f1f5f9; text-align: center; max-width: 500px; margin: 5rem auto;">
+                <div class="aesthetic-loader-ring"></div>
+                <h2 style="color: #4f46e5; font-weight: 900; margin-top: 1.75rem; margin-bottom: 0; letter-spacing: -0.04em; font-size: 32px;">PartnerTune.</h2>
+                <p style="color: #475569; font-size: 15px; margin-top: 1rem; font-weight: 600; margin-bottom: 0;">Menghubungkan & Melakukan Skoring</p>
+                <p style="color: #94a3b8; font-size: 12px; margin-top: 0.25rem; font-weight: 400; margin-bottom: 0;">Menyelaraskan data BigQuery & Google Sheets...</p>
+            </div>
+            <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            .aesthetic-loader-ring {
+                width: 48px;
+                height: 48px;
+                border: 4px solid #f1f5f9;
+                border-top: 4px solid #4f46e5;
+                border-radius: 50%;
+                animation: spin 0.85s infinite linear;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
     st.session_state.partners = []
     
     # 1. Ambil data utama dari BigQuery
@@ -281,6 +309,9 @@ if 'partners' not in st.session_state:
                 st.session_state.partners.append(p)
     except Exception as e:
         pass
+
+    # Bersihkan layar loading jika seluruh proses penarikan data selesai dilakukan
+    loading_placeholder.empty()
 
 if 'current_audit_id' not in st.session_state:
     st.session_state.current_audit_id = None
@@ -381,10 +412,15 @@ if view == "Dashboard Utama":
     if len(chart_partners) > 0:
         with st.container(border=True):
             c_head1, c_head2 = st.columns([2, 1])
-            with c_head1: st.markdown("<h3 style='margin:0; font-size:1.35rem; color:#0f172a;'>Portfolio Matrix</h3>", unsafe_allow_html=True)
-            with c_head2: st.markdown("<div style='text-align: right;'><span style='background-color: #f1f5f9; color: #475569; font-size: 0.75rem; font-weight: 600; padding: 0.35rem 0.75rem; border-radius: 0.5rem;'>Ukuran Gelembung = Marketing Value</span></div>", unsafe_allow_html=True)
+            with c_head1: 
+                st.markdown("<h3 style='margin:0; font-size:1.35rem; color:#0f172a;'>Portfolio Matrix</h3>", unsafe_allow_html=True)
+            with c_head2: 
+                st.markdown("<div style='text-align: right;'><span style='background-color: #f1f5f9; color: #475569; font-size: 0.75rem; font-weight: 600; padding: 0.35rem 0.75rem; border-radius: 0.5rem;'>Ukuran Gelembung = Marketing Value</span></div>", unsafe_allow_html=True)
             
             fig = go.Figure()
+            # Gunakan tracker untuk menghindari duplikasi kategori di legenda Plotly
+            legend_tracker = set()
+            
             for p in chart_partners:
                 score = calculate_score(p)
                 decision = get_partner_decision(p)
@@ -394,24 +430,51 @@ if view == "Dashboard Utama":
                     marker_color = 'rgba(139, 92, 246, 0.45)' # Ungu transparan premium khusus simulasi
                     line_style = dict(width=2, color='#6d28d9', dash='dot')
                     name_prefix = "✨ [Sim] "
+                    group_name = "✨ Data Simulasi Vetting"
                 else:
-                    color_map = {'green': 'rgba(56, 189, 248, 0.65)', 'red': 'rgba(244, 63, 94, 0.5)', 'orange': 'rgba(245, 158, 11, 0.5)'}
+                    color_map = {
+                        'green': 'rgba(56, 189, 248, 0.65)', 
+                        'red': 'rgba(244, 63, 94, 0.5)', 
+                        'orange': 'rgba(245, 158, 11, 0.5)'
+                    }
+                    display_names = {
+                        'green': '🟢 Direct Partnership (Skor ≥ 70)',
+                        'red': '🔴 Aggregator Model (Skor < 70)',
+                        'orange': '🟠 Direct Strategic (Katalog Kuat)'
+                    }
                     marker_color = color_map.get(decision['color'], 'rgba(56, 189, 248, 0.65)')
                     line_style = dict(width=1.5, color='rgba(255, 255, 255, 0.9)')
                     name_prefix = ""
+                    group_name = display_names.get(decision['color'], 'Lainnya')
+                
+                show_in_legend = False
+                if group_name not in legend_tracker:
+                    show_in_legend = True
+                    legend_tracker.add(group_name)
                 
                 fig.add_trace(go.Scatter(
                     x=[p['Market_Share_Score'] * 10], y=[score], mode='markers',
                     marker=dict(size=[p['Marketing_Value_Score'] * 4 + 25], color=marker_color, line=line_style),
-                    name=f"{name_prefix}{p['Nama_Label']}",
-                    text=f"<b>{name_prefix}{p['Nama_Label']}</b><br>Total Skor: {score}/100<br>Market Share Index: {p['Market_Share_Score']}/10",
+                    name=group_name,
+                    legendgroup=group_name,
+                    showlegend=show_in_legend,
+                    text=f"<b>{name_prefix}{p['Nama_Label']}</b><br>Total Skor: {score}/100<br>Status: {decision['type']}",
                     hoverinfo='text'
                 ))
                 
             fig.update_layout(
                 xaxis=dict(title='Market Share Index (Sumbu X)', range=[0, 105], gridcolor='#f1f5f9', zeroline=False),
                 yaxis=dict(title='Total Skoring (0-100)', range=[0, 105], gridcolor='#f1f5f9', zeroline=False),
-                margin=dict(l=50, r=30, t=20, b=50), height=450, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', showlegend=False
+                margin=dict(l=50, r=30, t=20, b=50), height=480, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                showlegend=True,
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.25,
+                    xanchor="center",
+                    x=0.5,
+                    font=dict(size=12, color="#475569")
+                )
             )
             st.plotly_chart(fig, use_container_width=True)
             
