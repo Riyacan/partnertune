@@ -727,31 +727,16 @@ elif view == "Evaluasi Partner":
             st.info(insight)
             
             # ==================================================================
-            # --- PROSES SIMPAN PERMANEN KE GOOGLE SHEETS VIA ST.CONNECTION ---
+            # --- PROSES SIMPAN PERMANEN KE GOOGLE SHEETS (ANTI-OVERWRITE) ---
             # ==================================================================
             try:
                 from streamlit_gsheets import GSheetsConnection
                 
-                # Inisialisasi koneksi Google Sheets dengan mematikan cache (ttl=0)
+                # 1. Inisialisasi koneksi dengan mematikan cache (ttl=0)
                 conn = st.connection("gsheets", type=GSheetsConnection, ttl=0)
-                
-                # Masukkan URL link Google Sheet Anda
                 spreadsheet_url = "https://docs.google.com/spreadsheets/d/16-_OLQefhs1JxLBlfJKgZUuCXqRWLhKtoDq2m8bdSaU/edit"
                 
-                # 1. Baca data yang sudah ada di sheet saat ini
-                existing_df = conn.read(spreadsheet=spreadsheet_url)
-                
-                # Membersihkan baris atau kolom kosong yang tidak sengaja terbaca oleh pandas
-                if existing_df is not None and not existing_df.empty:
-                    existing_df = existing_df.dropna(how='all')
-                else:
-                    existing_df = pd.DataFrame(columns=[
-                        'Partner_ID', 'Nama_Label', 'Status_Kemitraan', 
-                        'Market_Share_Score', 'New_Content_Score', 
-                        'Fraud_Risk_Score', 'Marketing_Value_Score'
-                    ])
-                
-                # 2. Konversi data simulasi baru menjadi DataFrame baru
+                # 2. Siapkan data baru dalam bentuk DataFrame 1 baris
                 new_row = pd.DataFrame([{
                     'Partner_ID': str(eval_partner['Partner_ID']),
                     'Nama_Label': str(eval_partner['Nama_Label']),
@@ -762,13 +747,13 @@ elif view == "Evaluasi Partner":
                     'Marketing_Value_Score': int(eval_partner['Marketing_Value_Score'])
                 }])
                 
-                # 3. Gabungkan data lama dengan baris baru (Reset index agar index-nya berurutan ke bawah)
-                updated_df = pd.concat([existing_df, new_row], ignore_index=True)
-                updated_df.index = updated_df.index + 1 # Memastikan keselarasan baris baris di gsheets
-                
-                # 4. Tulis balik seluruh dataframe yang telah diperbarui ke Google Sheets
-                conn.update(spreadsheet=spreadsheet_url, data=updated_df)
-                st.success("✅ Data simulasi berhasil disimpan secara permanen ke Google Sheets!")
+                # 3. Gunakan conn.create() dengan argumen data baru saja
+                # Parameter spreadsheet_url langsung otomatis mengarahkan ke file target
+                conn.create(
+                    spreadsheet=spreadsheet_url,
+                    data=new_row
+                )
+                st.success("✅ Data simulasi berhasil ditambahkan di baris paling bawah Google Sheets!")
                 
             except Exception as e:
                 st.warning(f"Gagal menyimpan ke Google Sheets secara permanen: {e}")
