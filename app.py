@@ -736,11 +736,13 @@ elif view == "Evaluasi Partner":
                 conn = st.connection("gsheets", type=GSheetsConnection, ttl=0)
                 spreadsheet_url = "https://docs.google.com/spreadsheets/d/16-_OLQefhs1JxLBlfJKgZUuCXqRWLhKtoDq2m8bdSaU/edit"
                 
-                # 2. Ambil objek Google Service Account internal (gspread client) bawaan Streamlit
-                # Cara ini bypass fungsi wrapper Streamlit yang sering berubah nama parameter
-                client_gspread = conn._client
+                # 2. Ambil objek gspread client menggunakan jalur _instance._client terbaru
+                if hasattr(conn, "_instance") and hasattr(conn._instance, "_client"):
+                    client_gspread = conn._instance._client
+                else:
+                    client_gspread = conn._client
                 
-                # 3. Buka spreadsheet berdasarkan URL-nya
+                # 3. Buka spreadsheet berdasarkan URL-nya dan pilih sheet pertama
                 sheet = client_gspread.open_by_url(spreadsheet_url).sheet1
                 
                 # 4. Siapkan baris data baru dalam bentuk List standar Python
@@ -754,7 +756,7 @@ elif view == "Evaluasi Partner":
                     int(eval_partner['Marketing_Value_Score'])
                 ]
                 
-                # 5. Eksekusi murni Append Row (Menambahkan baris baru di bawah data terakhir)
+                # 5. Eksekusi murni Append Row ke baris paling bawah Google Sheets
                 sheet.append_row(new_row_data)
                 st.success("✅ Data simulasi berhasil ditambahkan di baris paling bawah Google Sheets!")
                 
