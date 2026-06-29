@@ -243,7 +243,7 @@ if 'partners' not in st.session_state:
                 <div class="aesthetic-loader-ring"></div>
                 <h2 style="color: #4f46e5; font-weight: 900; margin-top: 1.75rem; margin-bottom: 0; letter-spacing: -0.04em; font-size: 32px;">PartnerTune.</h2>
                 <p style="color: #475569; font-size: 15px; margin-top: 1rem; font-weight: 600; margin-bottom: 0;">Menghubungkan & Melakukan Skoring</p>
-                <p style="color: #94a3b8; font-size: 12px; margin-top: 0.25rem; font-weight: 400; margin-bottom: 0;">Menyelaraskan data BigQuery & Google Sheets...</p>
+                <p style="color: #94a3b8; font-size: 12px; margin-top: 0.25rem; font-weight: 400; margin-bottom: 0;">Menyelaraskan data...</p>
             </div>
             <style>
             @keyframes spin {
