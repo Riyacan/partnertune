@@ -739,7 +739,7 @@ elif view == "Evaluasi Partner":
                 spreadsheet_url = "https://docs.google.com/spreadsheets/d/MASUKKAN_ID_SPREADSHEET_ANDA/edit"
                 
                 # 1. Baca data yang sudah ada di sheet saat ini
-                existing_df = conn.read(spreadsheet=spreadsheet_url, ttl=0)
+                existing_df = conn.read(spreadsheet=spreadsheet_url)
                 
                 # 2. Konversi data simulasi baru menjadi DataFrame
                 new_row = pd.DataFrame([{
