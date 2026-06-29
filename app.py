@@ -736,7 +736,7 @@ elif view == "Evaluasi Partner":
                 conn = st.connection("gsheets", type=GSheetsConnection, ttl=0)
                 
                 # Masukkan URL link Google Sheet Anda
-                spreadsheet_url = "https://docs.google.com/spreadsheets/d/MASUKKAN_ID_SPREADSHEET_ANDA/edit"
+                spreadsheet_url = "https://docs.google.com/spreadsheets/d/16-_OLQefhs1JxLBlfJKgZUuCXqRWLhKtoDq2m8bdSaU/edit"
                 
                 # 1. Baca data yang sudah ada di sheet saat ini
                 existing_df = conn.read(spreadsheet=spreadsheet_url)
