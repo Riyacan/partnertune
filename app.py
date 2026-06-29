@@ -734,7 +734,7 @@ elif view == "Evaluasi Partner":
                 
                 # 1. Inisialisasi koneksi dengan mematikan cache (ttl=0)
                 conn = st.connection("gsheets", type=GSheetsConnection, ttl=0)
-                spreadsheet_url = "https://docs.google.com/spreadsheets/d/MASUKKAN_ID_SPREADSHEET_ANDA/edit"
+                spreadsheet_url = "https://docs.google.com/spreadsheets/d/16-_OLQefhs1JxLBlfJKgZUuCXqRWLhKtoDq2m8bdSaU/edit"
                 
                 # 2. Ambil objek Google Service Account internal (gspread client) bawaan Streamlit
                 # Cara ini bypass fungsi wrapper Streamlit yang sering berubah nama parameter
