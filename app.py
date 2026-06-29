@@ -727,32 +727,35 @@ elif view == "Evaluasi Partner":
             st.info(insight)
             
             # ==================================================================
-            # --- PROSES SIMPAN PERMANEN KE GOOGLE SHEETS (ANTI-OVERWRITE) ---
+            # --- PROSES SIMPAN PERMANEN KE GOOGLE SHEETS (MURNI APPEND ROW) ---
             # ==================================================================
             try:
                 from streamlit_gsheets import GSheetsConnection
                 
                 # 1. Inisialisasi koneksi dengan mematikan cache (ttl=0)
                 conn = st.connection("gsheets", type=GSheetsConnection, ttl=0)
-                spreadsheet_url = "https://docs.google.com/spreadsheets/d/16-_OLQefhs1JxLBlfJKgZUuCXqRWLhKtoDq2m8bdSaU/edit"
+                spreadsheet_url = "https://docs.google.com/spreadsheets/d/MASUKKAN_ID_SPREADSHEET_ANDA/edit"
                 
-                # 2. Siapkan data baru dalam bentuk DataFrame 1 baris
-                new_row = pd.DataFrame([{
-                    'Partner_ID': str(eval_partner['Partner_ID']),
-                    'Nama_Label': str(eval_partner['Nama_Label']),
-                    'Status_Kemitraan': str(eval_partner['Status_Kemitraan']),
-                    'Market_Share_Score': int(eval_partner['Market_Share_Score']),
-                    'New_Content_Score': int(eval_partner['New_Content_Score']),
-                    'Fraud_Risk_Score': int(eval_partner['Fraud_Risk_Score']),
-                    'Marketing_Value_Score': int(eval_partner['Marketing_Value_Score'])
-                }])
+                # 2. Ambil objek Google Service Account internal (gspread client) bawaan Streamlit
+                # Cara ini bypass fungsi wrapper Streamlit yang sering berubah nama parameter
+                client_gspread = conn._client
                 
-                # 3. Gunakan conn.create() dengan argumen data baru saja
-                # Parameter spreadsheet_url langsung otomatis mengarahkan ke file target
-                conn.create(
-                    spreadsheet_url=spreadsheet_url,
-                    data=new_row
-                )
+                # 3. Buka spreadsheet berdasarkan URL-nya
+                sheet = client_gspread.open_by_url(spreadsheet_url).sheet1
+                
+                # 4. Siapkan baris data baru dalam bentuk List standar Python
+                new_row_data = [
+                    str(eval_partner['Partner_ID']),
+                    str(eval_partner['Nama_Label']),
+                    str(eval_partner['Status_Kemitraan']),
+                    int(eval_partner['Market_Share_Score']),
+                    int(eval_partner['New_Content_Score']),
+                    int(eval_partner['Fraud_Risk_Score']),
+                    int(eval_partner['Marketing_Value_Score'])
+                ]
+                
+                # 5. Eksekusi murni Append Row (Menambahkan baris baru di bawah data terakhir)
+                sheet.append_row(new_row_data)
                 st.success("✅ Data simulasi berhasil ditambahkan di baris paling bawah Google Sheets!")
                 
             except Exception as e:
