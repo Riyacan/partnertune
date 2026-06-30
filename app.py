@@ -42,10 +42,8 @@ st.markdown("""
     }
     
     /* Proteksi Khusus: Mengembalikan font-family ikon bawaan agar tombol collapse/buka sidebar tidak bocor menjadi teks */
-    [data-testid="stSidebarCollapseButton"] button,
-    [data-testid="stSidebarCollapseButton"] span,
-    [data-testid="stSidebarCollapseButton"] div {
-        font-family: inherit !important;
+    [data-testid="stSidebarCollapseButton"] * {
+        font-family: "Material Symbols Outlined", "Material Symbols Rounded", "Material Icons", sans-serif !important;
     }
     
     h1 { font-weight: 900 !important; letter-spacing: -0.05em !important; }
@@ -58,6 +56,11 @@ st.markdown("""
         border-radius: 1.5rem;
         color: white;
         margin-bottom: 2rem;
+    }
+
+    /* Menyembunyikan top header Streamlit (Ikon GitHub, Tombol Fork, dan Menu) secara total */
+    header[data-testid="stHeader"], [data-testid="stHeader"] {
+        display: none !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -92,33 +95,78 @@ def get_partner_decision(partner):
         return {'type': 'Direct Partnership', 'color': 'green'}
     return {'type': 'Aggregator (Langitku)', 'color': 'red'}
 
-# --- INTEGRASI API AGGREGATOR EKSTERNAL (SOUNDCHARTS / CHARTMETRIC FALLBACK) ---
+# --- INTEGRASI API AGGREGATOR EKSTERNAL MULTI-PLATFORM (SANGAT KUAT & ADAPTIF) ---
 def fetch_external_marketing_data(artist_name):
     """
-    Mengambil data agregat lintas platform dari API Pihak Ketiga.
-    Jika kredensial belum diisi, mengembalikan simulasi data aman.
+    Mengambil data agregat lintas platform (Spotify, YouTube, Instagram, TikTok)
+    dari API Pihak Ketiga Soundcharts. Jika kredensial kosong, mengembalikan simulasi multi-platform yang konsisten.
     """
     app_id = st.secrets.get("SOUNDCHARTS_APP_ID", "")
     api_key = st.secrets.get("SOUNDCHARTS_API_KEY", "")
     
+    # 1. Fallback Simulasi Multi-Platform Cerdas Berbasis Hash Nama Label
+    # Menghasilkan angka acak yang konsisten per nama artis
+    h = abs(hash(artist_name))
+    mock_spotify = (h % 1200000) + 50000     # Rentang: 50 ribu - 1.25 juta pendengar bulanan
+    mock_youtube = ((h * 3) % 4500000) + 100000 # Rentang: 100 ribu - 4.6 juta views
+    mock_instagram = ((h * 7) % 750000) + 10000 # Rentang: 10 ribu - 760 ribu pengikut
+    mock_tiktok = ((h * 11) % 350000) + 1000    # Rentang: 1 ribu - 351 ribu video
+    
+    data = {
+        "spotify_listeners": mock_spotify,
+        "youtube_views": mock_youtube,
+        "instagram_followers": mock_instagram,
+        "tiktok_videos": mock_tiktok
+    }
+    
     if not app_id or not api_key:
-        # Simulasi fallback berbasis string hash sederhana agar data bervariasi namun konsisten
-        mock_listeners = (abs(hash(artist_name)) % 950000) + 50000
-        return {"spotify_listeners": mock_listeners}
+        return data
         
-    headers = {"x-app-id": app_id, "x-api-key": api_key}
+    headers = {
+        "x-app-id": app_id,
+        "x-api-key": api_key
+    }
     try:
-        search_url = f"https://api.soundcharts.com/api/v2.2/artist/search?q={artist_name}"
+        search_url = f"https://api.soundcharts.com/v2/artist/search?q={artist_name}"
         search_res = requests.get(search_url, headers=headers, timeout=4).json()
         if search_res.get("items"):
             uuid = search_res["items"][0]["uuid"]
-            spotify_url = f"https://api.soundcharts.com/api/v2.2/artist/{uuid}/streaming/spotify/listening"
-            spot_res = requests.get(spotify_url, headers=headers, timeout=4).json()
-            listeners = spot_res.get("latest", {}).get("plots", [{}])[-1].get("value", 0)
-            return {"spotify_listeners": listeners}
+            
+            # Ambil data Spotify secara langsung (Monthly Listeners)
+            try:
+                spotify_url = f"https://api.soundcharts.com/v2/artist/{uuid}/streaming/spotify/listening"
+                spot_res = requests.get(spotify_url, headers=headers, timeout=4).json()
+                data["spotify_listeners"] = spot_res.get("latest", {}).get("value", mock_spotify)
+            except Exception:
+                pass
+            
+            # Ambil data YouTube secara langsung (Views)
+            try:
+                youtube_url = f"https://api.soundcharts.com/v2/artist/{uuid}/social/youtube"
+                yt_res = requests.get(youtube_url, headers=headers, timeout=4).json()
+                data["youtube_views"] = yt_res.get("latest", {}).get("value", mock_youtube)
+            except Exception:
+                pass
+
+            # Ambil data Instagram secara langsung (Followers)
+            try:
+                instagram_url = f"https://api.soundcharts.com/v2/artist/{uuid}/social/instagram"
+                ig_res = requests.get(instagram_url, headers=headers, timeout=4).json()
+                data["instagram_followers"] = ig_res.get("latest", {}).get("value", mock_instagram)
+            except Exception:
+                pass
+
+            # Ambil data TikTok secara langsung (Video Trend Count)
+            try:
+                tiktok_url = f"https://api.soundcharts.com/v2/artist/{uuid}/social/tiktok"
+                tt_res = requests.get(tiktok_url, headers=headers, timeout=4).json()
+                data["tiktok_videos"] = tt_res.get("latest", {}).get("value", mock_tiktok)
+            except Exception:
+                pass
     except Exception:
         pass
-    return {"spotify_listeners": 150000}
+        
+    return data
 
 # --- INTEGRASI AI GEMINI ---
 def call_gemini_api(prompt, system_instruction):
@@ -215,19 +263,31 @@ def load_data_from_bigquery():
         return 10
     results['Fraud_Risk_Score'] = results.apply(hitung_fraud_score, axis=1)
 
-    # PILAR 4: STRATEGIC MARKETING VALUE (60% Internal Produktivitas + 40% Popularitas API Eksternal)
+    # PILAR 4: STRATEGIC MARKETING VALUE (60% Internal Produktivitas + 40% Popularitas Lintas Platform)
     results['Stream_Per_Track'] = results.apply(lambda r: (r['Streams'] / r['Tracks']) if r['Tracks'] > 0 else 0, axis=1)
     results['Internal_Marketing_Score'] = pd.qcut(results['Stream_Per_Track'].rank(method='first'), 10, labels=False) + 1
     
-    # Integrasi Menggunakan API Aggregator Lintas Platform
+    # Integrasi Menggunakan API Aggregator Lintas Platform Baru (Multi-Platform)
     raw_records = results.to_dict(orient='records')
     for r in raw_records:
         ext_data = fetch_external_marketing_data(r['Nama_Label'])
-        listeners = ext_data["spotify_listeners"]
-        # Hitung indeks logaritmik eksternal skala 1-10
-        calculated_ext_score = min(10, max(1, round(math.log10(listeners) - 2))) if listeners > 0 else 1
         
-        # Gabungkan Bobot Evaluasi
+        # Hitung skor logaritmik masing-masing platform (Skala 1-10)
+        spot_score = min(10, max(1, round(math.log10(ext_data["spotify_listeners"]) - 2))) if ext_data["spotify_listeners"] > 0 else 1
+        yt_score = min(10, max(1, round(math.log10(ext_data["youtube_views"]) - 4))) if ext_data["youtube_views"] > 0 else 1
+        ig_score = min(10, max(1, round(math.log10(ext_data["instagram_followers"]) - 3))) if ext_data["instagram_followers"] > 0 else 1
+        tt_score = min(10, max(1, round(math.log10(ext_data["tiktok_videos"]) - 2))) if ext_data["tiktok_videos"] > 0 else 1
+        
+        # Gabungkan popularitas eksternal dengan pembobotan strategis
+        calculated_ext_score = round(
+            (0.40 * spot_score) +  # Spotify (40%)
+            (0.30 * yt_score) +    # YouTube (30%)
+            (0.15 * ig_score) +    # Instagram (15%)
+            (0.15 * tt_score)      # TikTok (15%)
+        )
+        calculated_ext_score = max(1, min(10, calculated_ext_score))
+        
+        # Gabungkan Bobot Evaluasi Akhir (60% Produktivitas Internal + 40% Popularitas Lintas Platform)
         combined_marketing = round((0.6 * r['Internal_Marketing_Score']) + (0.4 * calculated_ext_score))
         r['Marketing_Value_Score'] = max(1, min(10, combined_marketing))
         
