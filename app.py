@@ -408,7 +408,38 @@ with st.sidebar:
     st.caption("Platform Engine")
     st.info("💻 Nuon Integrator")
 
-# --- KONTEN UTAMA ---
+# --- KONTEN UTAMA & LOGIKA TRANSISI TRANSISI LOADING MENU ---
+# Perubahan untuk menampilkan animasi loading branded yang sangat halus ketika beralih menu halaman
+if 'last_view' not in st.session_state:
+    st.session_state.last_view = view
+
+if st.session_state.last_view != view:
+    transition_placeholder = st.empty()
+    with transition_placeholder.container():
+        st.markdown(f"""
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10rem 2rem; background: #ffffff; border-radius: 1.5rem; border: 1px solid #f1f5f9; text-align: center; max-width: 600px; margin: 4rem auto; box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.03);">
+                <div class="transition-loader-ring"></div>
+                <h3 style="color: #4f46e5; font-weight: 800; margin-top: 1.5rem; margin-bottom: 0; font-size: 20px; letter-spacing: -0.03em;">Memuat {view}...</h3>
+                <p style="color: #94a3b8; font-size: 13px; margin-top: 0.5rem; font-weight: 400; margin-bottom: 0;">Sistem sedang menyelaraskan modul portofolio PartnerTune</p>
+            </div>
+            <style>
+            @keyframes spin {{
+                0% {{ transform: rotate(0deg); }}
+                100% {{ transform: rotate(360deg); }}
+            }}
+            .transition-loader-ring {{
+                width: 40px;
+                height: 40px;
+                border: 3.5px solid #f1f5f9;
+                border-top: 3.5px solid #4f46e5;
+                border-radius: 50%;
+                animation: spin 0.8s infinite linear;
+            }}
+            </style>
+        """, unsafe_allow_html=True)
+    time.sleep(0.4) # Jeda transisi estetik milidetik agar tidak berkedip kasar
+    transition_placeholder.empty()
+    st.session_state.last_view = view
 
 # Tampilan 1: DASHBOARD UTAMA
 if view == "Dashboard Utama":
