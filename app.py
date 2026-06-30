@@ -58,9 +58,16 @@ st.markdown("""
         margin-bottom: 2rem;
     }
 
-    /* Menyembunyikan top header Streamlit (Ikon GitHub, Tombol Fork, dan Menu) secara total */
-    header[data-testid="stHeader"], [data-testid="stHeader"] {
+    /* PERBAIKAN: Sembunyikan Deploy, Fork/GitHub, dan menu 3-titik di kanan, tapi biarkan tombol expand di kiri tetap aktif */
+    [data-testid="stAppDeployButton"], 
+    [data-testid="stMainMenu"],
+    header[data-testid="stHeader"] a {
         display: none !important;
+    }
+    
+    /* Buat background header transparan agar tombol expand di kiri atas tetap terlihat jelas */
+    header[data-testid="stHeader"] {
+        background-color: transparent !important;
     }
     </style>
 """, unsafe_allow_html=True)
