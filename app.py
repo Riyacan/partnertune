@@ -34,7 +34,7 @@ except Exception as e:
 st.markdown("""
     <style>
     /* Mengimpor font Inter dari Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700;800;900&display=swap');
     
     /* Hanya terapkan font Inter ke elemen teks spesifik agar tidak merusak sistem ikon Streamlit */
     html, body, p, label, h1, h2, h3, h4, h5, h6, .stMarkdown, strong, b {
@@ -237,11 +237,13 @@ def load_data_from_bigquery():
             COUNT(DISTINCT a.song_id) AS Tracks, 
             COALESCE(SUM(c.stream), 0) AS Streams,
             COALESCE(SUM(c.rev), 0) AS Rev,
-            COALESCE(AVG(d.New_Content_Score), 0) as New_Content_Score
+            COALESCE(AVG(d.New_Content_Score), 0) as New_Content_Score,
+            COALESCE(MAX(e.fraud_score), 10) as Fraud_Risk_Score
         FROM `melondata.digital_music.md_label` b
         LEFT OUTER JOIN `melondata.digital_music.if_song_label` a ON b.label_cd = a.label_cd 
         LEFT OUTER JOIN stream c ON b.label_cd = c.label_cd
         LEFT OUTER JOIN score_newcontent d ON b.label_cd = d.partner_ID
+        LEFT OUTER JOIN `melondata.digital_music.all_label_fraud_score` e ON b.label_cd = e.label_cd
         GROUP BY 1, 2, b.Status
     """
     try:
@@ -261,17 +263,8 @@ def load_data_from_bigquery():
     # PILAR 2: NEW CONTENT ACTIVITY
     results['New_Content_Score'] = results['New_Content_Score'].round().astype(int)
 
-    # PILAR 3: FRAUD HISTORY (Sistem Deteksi Devisiasi RPM Finansial Nuon)
-    results['RPM'] = results.apply(lambda r: (r['Rev'] / r['Streams'] * 1000) if r['Streams'] > 0 else 0, axis=1)
-    median_rpm = results[results['RPM'] > 0]['RPM'].median() if len(results[results['RPM'] > 0]) > 0 else 1
-    
-    def hitung_fraud_score(row):
-        if row['Streams'] == 0: return 10
-        rasio = row['RPM'] / median_rpm
-        if rasio < 0.4: return 3
-        if rasio < 0.7: return 6
-        return 10
-    results['Fraud_Risk_Score'] = results.apply(hitung_fraud_score, axis=1)
+    # PILAR 3: FRAUD RISK SCORE (Diambil langsung dari BigQuery table `all_label_fraud_score` lewat Join)
+    results['Fraud_Risk_Score'] = results['Fraud_Risk_Score'].fillna(10).round().astype(int)
 
     # PILAR 4: STRATEGIC MARKETING VALUE (60% Internal Produktivitas + 40% Popularitas Lintas Platform)
     results['Stream_Per_Track'] = results.apply(lambda r: (r['Streams'] / r['Tracks']) if r['Tracks'] > 0 else 0, axis=1)
