@@ -252,8 +252,11 @@ def load_data_from_bigquery():
         
     if results.empty: return []
 
-    # PILAR 1: MARKET SHARE
-    results['Market_Share_Score'] = pd.qcut(results['Streams'].rank(method='first'), 10, labels=False) + 1
+    # PILAR 1: MARKET SHARE (Kombinasi Strategis: 50% Volume Streams + 50% Nilai Revenue)
+    results['Streams_Rank'] = results['Streams'].rank(method='first')
+    results['Rev_Rank'] = results['Rev'].rank(method='first')
+    results['Combined_Market_Share_Rank'] = (0.5 * results['Streams_Rank']) + (0.5 * results['Rev_Rank'])
+    results['Market_Share_Score'] = pd.qcut(results['Combined_Market_Share_Rank'].rank(method='first'), 10, labels=False) + 1
 
     # PILAR 2: NEW CONTENT ACTIVITY
     results['New_Content_Score'] = results['New_Content_Score'].round().astype(int)
